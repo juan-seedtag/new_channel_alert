@@ -1,0 +1,25 @@
+name: New channel alert
+
+on:
+  schedule:
+    - cron: "0 7 * * *"  # ~09:00 Madrid
+  workflow_dispatch:
+
+jobs:
+  check-new-channels:
+    runs-on:
+      labels: seedtag-gke-runners
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run new channel check
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          export TRINO_USER=$(gcloud config get account)
+          export TRINO_ACCESS_TOKEN=$(gcloud auth print-access-token)
+          python scripts/check_new_channels.py
