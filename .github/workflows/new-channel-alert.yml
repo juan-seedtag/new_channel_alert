@@ -18,7 +18,8 @@ jobs:
 
       - name: Run new channel check
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          ALERTS_SLACK_TOKEN: ${{ secrets.ALERTS_SLACK_TOKEN }}
+          ALERTS_CHANNEL: "#bi-demand"
         run: |
           export TRINO_USER=$(gcloud config get account)
           export TRINO_ACCESS_TOKEN=$(gcloud auth print-access-token)

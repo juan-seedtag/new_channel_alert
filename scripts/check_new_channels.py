@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Daily alert: detect channel_ids appearing for the first time in
 st_datalakehouse.analytics.etl_ssp_responses_daily_enriched after a cutoff date,
-and post to Slack when any are found. Stdlib only."""
+and post to Slack (#bi-demand, chat.postMessage with a bot token — same Slack app
+setup as source_truth_v2's deal alerts) when any are found. Stdlib only."""
 
 import json
 import os
@@ -68,16 +69,25 @@ def run_trino_query(host: str, user: str, token: str, sql: str) -> list:
     return rows
 
 
-def post_slack(webhook_url: str, text: str) -> None:
+def post_slack(token: str, channel: str, text: str) -> None:
+    """chat.postMessage via the Slack Web API — same setup as source_truth_v2:
+    bot token with chat:write, bot must be a member of the channel."""
     req = urllib.request.Request(
-        webhook_url,
-        data=json.dumps({"text": text}).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        "https://slack.com/api/chat.postMessage",
+        data=json.dumps(
+            {"channel": channel, "text": text,
+             "unfurl_links": False, "unfurl_media": False}
+        ).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json; charset=utf-8",
+        },
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
-        if resp.status >= 300:
-            raise RuntimeError(f"Slack webhook returned HTTP {resp.status}")
+        body = json.loads(resp.read().decode("utf-8"))
+    if not body.get("ok"):
+        raise RuntimeError(f"Slack chat.postMessage: {body.get('error') or 'unknown_error'}")
 
 
 def main() -> int:
@@ -109,19 +119,20 @@ def main() -> int:
         + ", ".join(channel_ids)
     )
 
-    webhook = os.environ.get("SLACK_WEBHOOK_URL")
-    if not webhook:
-        print("SLACK_WEBHOOK_URL not set — dry run. Message would be:")
+    slack_token = os.environ.get("ALERTS_SLACK_TOKEN")
+    slack_channel = os.environ.get("ALERTS_CHANNEL", "#bi-demand").strip()
+    if not slack_token:
+        print("ALERTS_SLACK_TOKEN not set — dry run. Message would be:")
         print(message)
         return 0
 
     try:
-        post_slack(webhook, message)
+        post_slack(slack_token, slack_channel, message)
     except (RuntimeError, urllib.error.URLError, urllib.error.HTTPError) as exc:
         print(f"ERROR: Slack post failed: {exc}", file=sys.stderr)
         return 1
 
-    print(f"Alert sent to Slack ({len(channel_ids)} new channel(s)).")
+    print(f"Alert sent to {slack_channel} ({len(channel_ids)} new channel(s)).")
     return 0
 
 

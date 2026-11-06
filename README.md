@@ -11,13 +11,17 @@ pool, where `gcloud` has ambient credentials used to authenticate against Trino
 
 ## Prerequisites
 
-- **`SLACK_WEBHOOK_URL` repo secret** — an incoming-webhook URL pointing at #bi-demand.
+- **`ALERTS_SLACK_TOKEN` repo secret** — a Slack bot token with `chat:write`; the bot
+  must be a member of #bi-demand. Same Slack app setup as source_truth_v2's deal
+  alerts (its token lives in `.env` locally / the Composer Connection
+  `slack_sot_alerts`) — the same token can be reused here. The channel can be
+  overridden with `ALERTS_CHANNEL` (defaults to `#bi-demand`).
 - **Trino authorization** — the runner's gcloud service account must be authorized to
   query Trino at `trino-users.seedt.ag`.
 
 ## Testing locally
 
-Dry run (prints the message instead of posting, since no webhook is set):
+Dry run (prints the message instead of posting, since no Slack token is set):
 
 ```bash
 TRINO_USER=$(gcloud config get account) TRINO_ACCESS_TOKEN=$(gcloud auth print-access-token) python scripts/check_new_channels.py
